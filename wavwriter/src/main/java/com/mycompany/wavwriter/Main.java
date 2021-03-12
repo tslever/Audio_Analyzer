@@ -3,7 +3,8 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package com.mycompany.midi.to.annotated.wav.vconverter;
+package com.mycompany.wavwriter;
+
 
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;

@@ -9,7 +9,6 @@ package com.mycompany.midireader;
 import java.io.File;
 import java.io.IOException;
 import javax.sound.midi.InvalidMidiDataException;
-import javax.sound.midi.MetaMessage;
 import javax.sound.midi.MidiEvent;
 import javax.sound.midi.MidiMessage;
 import javax.sound.midi.MidiSystem;
