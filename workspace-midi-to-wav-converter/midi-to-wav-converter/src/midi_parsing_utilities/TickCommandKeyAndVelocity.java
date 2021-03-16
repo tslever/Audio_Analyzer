@@ -7,6 +7,7 @@ public class TickCommandKeyAndVelocity {
 	private int command;
 	private int key;
 	private int velocity;
+	private boolean usedToInsertSinusoidInTimeSeries;
 	
 	public TickCommandKeyAndVelocity(int tickToUse, int commandToUse, int keyToUse, int velocityToUse) {
 		
@@ -14,6 +15,7 @@ public class TickCommandKeyAndVelocity {
 		this.command = commandToUse;
 		this.key = keyToUse;
 		this.velocity = velocityToUse;
+		this.usedToInsertSinusoidInTimeSeries = false;
 		
 	}
 	
@@ -31,6 +33,14 @@ public class TickCommandKeyAndVelocity {
 	
 	public int getVelocity() {
 		return this.velocity;
+	}
+	
+	public boolean getUsedToInsertSinusoidInTimeSeries() {
+		return this.usedToInsertSinusoidInTimeSeries;
+	}
+	
+	public void setUsedToInsertSinusoidInTimeSeries() {
+		this.usedToInsertSinusoidInTimeSeries = true;
 	}
 	
 }

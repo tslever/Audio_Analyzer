@@ -2,6 +2,7 @@ package converter_utilities;
 
 
 import java.io.File;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.TreeMap;
@@ -10,9 +11,10 @@ import javax.sound.midi.MidiSystem;
 import javax.sound.midi.Sequence;
 import midi_parsing_utilities.MidiParser;
 import midi_parsing_utilities.TickCommandKeyAndVelocity;
+import wav_assembling_utilities.StartTickHasNoCorrespondingEndTickException;
 import wav_assembling_utilities.WavAssembler;
-import wav_assembling_utilities.NoteAlreadyOnException;
-import wav_assembling_utilities.NoteAlreadyOffException;
+//import wav_assembling_utilities.NoteAlreadyOnException;
+//import wav_assembling_utilities.NoteAlreadyOffException;
 
 
 public class Main {
@@ -21,8 +23,7 @@ public class Main {
 		throws NotOneInputException,
 			   IOException,
 			   InvalidMidiDataException,
-			   NoteAlreadyOnException,
-			   NoteAlreadyOffException {
+			   StartTickHasNoCorrespondingEndTickException {
 
 		InputParsingUtilities.checkNumberOfInputsIn(args); // throws NotOneInputException
 		

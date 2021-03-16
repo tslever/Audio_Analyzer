@@ -4,30 +4,23 @@ package wav_assembling_utilities;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.TreeMap;
 import javax.sound.midi.Sequence;
+import java.util.ArrayList;
+import java.util.TreeMap;
 import midi_parsing_utilities.MidiParser;
 import midi_parsing_utilities.TickCommandKeyAndVelocity;
 
 
 public class WavAssembler {
-	
-	
+
 	private static double samplingFrequency = 44100.0;
 	private static double microsecondsPerSecond = 1000000.0;
-	private static int maximumNumberOfChannels = 16;
-	private static int numberOfMidiKeys = 128;
+	private static double theoreticalMaximumOfTimeSeries = 32767.0;
 	private static int sizeOfShort = 2;
-	private static double theoreticalMaximumValueOfTimeSeries = 32767;
-
 	
 	public static short[] assembleTimeSeriesBasedOn(
 		Sequence sequence, TreeMap<Integer, ArrayList<TickCommandKeyAndVelocity>> treeMapOfChannelsAndArrayLists)
-		throws NoteAlreadyOnException, NoteAlreadyOffException {
+		throws StartTickHasNoCorrespondingEndTickException {
 		
 		int timeSeriesDataPerTick = (int)Math.ceil(
 			samplingFrequency / microsecondsPerSecond *
@@ -36,67 +29,64 @@ public class WavAssembler {
 		
 		double[] timeSeries = new double[(int)sequence.getTickLength() * timeSeriesDataPerTick];
 		
-		int[][] velocities = new int[maximumNumberOfChannels][numberOfMidiKeys];
-		
+		int i;
+		TickCommandKeyAndVelocity tickCommandNoteOnKeyAndVelocity;
+		int startTick;
+		boolean startTickHasNoCorrespondingEndTick;
 		int j;
+		TickCommandKeyAndVelocity tickCommandNoteOffKeyAndVelocity;
+		int endTick = -1;
+		int lengthOfSinusoidInTicks;
 		double noteFrequency;
-		int k;
-		for (int i = 0; i < sequence.getTickLength(); i++) {
+		
+		for (int channel : treeMapOfChannelsAndArrayLists.keySet()) {
 			
-			for (int channel : treeMapOfChannelsAndArrayLists.keySet()) {
+			ArrayList<TickCommandKeyAndVelocity> arrayList = treeMapOfChannelsAndArrayLists.get(channel);
+			
+			for (i = 0; i < arrayList.size(); i++) {
 				
-				//for (TickCommandKeyAndVelocity tickCommandKeyAndVelocity : treeMapOfChannelsAndArrayLists.get(channel)) {
-				Iterator<TickCommandKeyAndVelocity> iterator = treeMapOfChannelsAndArrayLists.get(channel).iterator();
-				while (iterator.hasNext()) {
-					TickCommandKeyAndVelocity tickCommandKeyAndVelocity = iterator.next();
+				tickCommandNoteOnKeyAndVelocity = arrayList.get(i);
 				
-					if (tickCommandKeyAndVelocity.getTick() > i) {
-						continue;
-					}
+				if (tickCommandNoteOnKeyAndVelocity.getCommand() == MidiParser.getNoteOff()) continue;
+				
+				startTick = tickCommandNoteOnKeyAndVelocity.getTick();
+				
+				startTickHasNoCorrespondingEndTick = true;
+				
+				for (j = i + 1; j < arrayList.size(); j++) {
 					
-					else if (tickCommandKeyAndVelocity.getTick() == i) {
+					tickCommandNoteOffKeyAndVelocity = arrayList.get(j);
+					
+					if (tickCommandNoteOffKeyAndVelocity.getCommand() == MidiParser.getNoteOn()) continue;
+					
+					if ((tickCommandNoteOffKeyAndVelocity.getKey() == tickCommandNoteOnKeyAndVelocity.getKey()) &&
+						(!tickCommandNoteOffKeyAndVelocity.getUsedToInsertSinusoidInTimeSeries())) {
 						
-						if (tickCommandKeyAndVelocity.getCommand() == MidiParser.getNoteOn()) {
+						endTick = tickCommandNoteOffKeyAndVelocity.getTick();
 						
-							if (velocities[channel][tickCommandKeyAndVelocity.getKey()] > 0) {
-								throw new NoteAlreadyOnException("Note already on.");
-							}
-							
-							velocities[channel][tickCommandKeyAndVelocity.getKey()] =
-								tickCommandKeyAndVelocity.getVelocity();
-							
-						}
+						tickCommandNoteOffKeyAndVelocity.setUsedToInsertSinusoidInTimeSeries();
 						
-						if (tickCommandKeyAndVelocity.getCommand() == MidiParser.getNoteOff()) {
-							
-							if (velocities[channel][tickCommandKeyAndVelocity.getKey()] == 0) {
-								throw new NoteAlreadyOffException("Note already off.");
-							}
-							
-							velocities[channel][tickCommandKeyAndVelocity.getKey()] = 0;
-							
-						}
+						startTickHasNoCorrespondingEndTick = false;
 						
-						//treeMapOfChannelsAndArrayLists.get(channel).remove(tickCommandKeyAndVelocity);
-						iterator.remove();
+						break;
 						
 					}
 					
 				}
 				
-				for (j = 0; j < numberOfMidiKeys; j++) {
+				if (startTickHasNoCorrespondingEndTick) {
+					throw new StartTickHasNoCorrespondingEndTickException("Start tick has no corresponding end tick.");
+				}
+				
+				lengthOfSinusoidInTicks = endTick - startTick;
+				
+				for (j = 0; j < lengthOfSinusoidInTicks * timeSeriesDataPerTick; j++) {
 					
-					if (velocities[channel][j] > 0) {
-						
-						noteFrequency = 440.0 * Math.pow(2.0, ((double)j-69.0)/12.0);
-						
-						for (k = i * timeSeriesDataPerTick; k < (i+1) * timeSeriesDataPerTick; k++) {
-							
-							timeSeries[k] += velocities[channel][j]/2.0 * Math.sin(2.0 * Math.PI * noteFrequency / samplingFrequency * (double)k) + 1.0;
-							
-						}
-						
-					}
+					noteFrequency = 440.0 * Math.pow(2.0, ((double)tickCommandNoteOnKeyAndVelocity.getKey()-69.0)/12.0);
+					
+					timeSeries[startTick * timeSeriesDataPerTick + j] +=
+						(double)tickCommandNoteOnKeyAndVelocity.getVelocity() / 2.0
+						* Math.sin(2.0 * Math.PI * noteFrequency / samplingFrequency * (double)j) + 1.0;
 					
 				}
 				
@@ -104,17 +94,17 @@ public class WavAssembler {
 			
 		}
 		
-		double actualMaximumValueOfTimeSeries = -1.0;
-		for (int i = 0; i < timeSeries.length; i++ ) {
-			if (timeSeries[i] > actualMaximumValueOfTimeSeries) {
-				actualMaximumValueOfTimeSeries = timeSeries[i];
+		double actualMaximumOfTimeSeries = -1.0;
+		for (i = 0; i < timeSeries.length; i++ ) {
+			if (timeSeries[i] > actualMaximumOfTimeSeries) {
+				actualMaximumOfTimeSeries = timeSeries[i];
 			}
 		}
 		
 		short[] timeSeriesAsShortArray = new short[timeSeries.length];
-		for (int i = 0; i < timeSeries.length; i++) {
+		for (i = 0; i < timeSeries.length; i++) {
 			timeSeriesAsShortArray[i] =
-				(short)(timeSeries[i] / actualMaximumValueOfTimeSeries * theoreticalMaximumValueOfTimeSeries);
+				(short)(timeSeries[i] / actualMaximumOfTimeSeries * theoreticalMaximumOfTimeSeries);
 		}
 		
 		return timeSeriesAsShortArray;
